@@ -13,6 +13,29 @@
 # =========== Copyright 2023 @ CAMEL-AI.org. All Rights Reserved. ===========
 __version__ = "0.2.5"
 
+from oasis import aoasis, atherum
+from oasis.aoasis import (AOASIS_EXECUTION_MODES,
+                           AOASIS_SUPPORTED_PLATFORMS, AOASIS_VARIANT_NAME,
+                           ATHERUM_DEFAULT_ARCHETYPES, AOasisEvidenceSummary,
+                           AOasisPlatformOutput, AOasisPreparedRun,
+                           AOasisRunConfig, AOasisRunResult,
+                           AOasisSocialAction, AOasisSocialComment,
+                           AOasisSocialPost, AOasisCostEstimate,
+                           AtherumAgentArchetype, AtherumPopulationStore,
+                           MODEL_TOKEN_RATES_USD_PER_MILLION,
+                           PersistentAgentProfile, PersistentAgentState,
+                           PersistentPopulationSnapshot,
+                           build_default_population,
+                           build_evidence_summary,
+                           build_graph_from_population,
+                           build_scribe_markdown,
+                           estimate_run_cost,
+                           execute_aoasis_run,
+                           extract_memory_updates_from_trace,
+                           finalize_aoasis_run,
+                           normalize_platform_db,
+                           platform_action_policy,
+                           prepare_aoasis_run)
 from oasis.environment.env_action import LLMAction, ManualAction
 from oasis.environment.make import make
 from oasis.social_agent import (generate_reddit_agent_graph,
@@ -27,5 +50,20 @@ from oasis.testing.show_db import print_db_contents
 __all__ = [
     "make", "Platform", "ActionType", "DefaultPlatformType", "ManualAction",
     "LLMAction", "print_db_contents", "AgentGraph", "SocialAgent", "UserInfo",
-    "generate_reddit_agent_graph", "generate_twitter_agent_graph"
+    "generate_reddit_agent_graph", "generate_twitter_agent_graph",
+    "AtherumPopulationStore", "PersistentAgentProfile",
+    "PersistentAgentState", "PersistentPopulationSnapshot",
+    "ATHERUM_DEFAULT_ARCHETYPES", "AtherumAgentArchetype",
+    "AOASIS_EXECUTION_MODES", "AOASIS_SUPPORTED_PLATFORMS",
+    "AOASIS_VARIANT_NAME",
+    "AOasisEvidenceSummary", "AOasisPlatformOutput", "AOasisPreparedRun",
+    "AOasisRunConfig", "AOasisRunResult",
+    "AOasisSocialAction", "AOasisSocialComment", "AOasisSocialPost",
+    "AOasisCostEstimate", "MODEL_TOKEN_RATES_USD_PER_MILLION",
+    "build_default_population", "build_evidence_summary",
+    "build_graph_from_population", "build_scribe_markdown", "aoasis",
+    "atherum",
+    "estimate_run_cost", "execute_aoasis_run",
+    "extract_memory_updates_from_trace", "finalize_aoasis_run",
+    "normalize_platform_db", "platform_action_policy", "prepare_aoasis_run"
 ]
