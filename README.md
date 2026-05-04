@@ -59,6 +59,44 @@
 
 <br>
 
+## A-Oasis for Atherum
+
+This fork includes `A-Oasis`, an Atherum-oriented adapter layer on top of
+OASIS. It adds persistent Atherum society populations, normalized
+Twitter/Reddit/Instagram outputs, evidence briefs, cost estimates, and an
+Atherum-compatible local worker API.
+
+Run the local A-Oasis worker:
+
+```bash
+.venv/bin/python -m oasis.aoasis.worker_server --host 127.0.0.1 --port 4001
+```
+
+For deterministic local testing where `POST /api/v1/simulations` completes
+before returning:
+
+```bash
+.venv/bin/python -m oasis.aoasis.worker_server --host 127.0.0.1 --port 4001 --sync
+```
+
+Point Atherum at it with:
+
+```bash
+OASIS_WORKER_URL=http://127.0.0.1:4001
+```
+
+The worker exposes the routes Atherum already expects:
+
+- `GET /health`
+- `POST /api/v1/simulations`
+- `GET /api/v1/simulations/{simulation_id}/result`
+
+The result payload includes `propagation`, `timeline`, `network`, cost
+metadata, and `metadata.oasisEvents` so Atherum can materialize posts,
+comments, actions, and evidence summaries.
+
+<br>
+
 ## ✨ Key Features
 
 ### 📈 Scalability

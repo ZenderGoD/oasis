@@ -6,6 +6,7 @@ def test_aoasis_namespace_exposes_variant_identity_and_core_apis():
     from oasis import aoasis
     from oasis.aoasis import (
         AOASIS_VARIANT_NAME,
+        AOasisWorkerService,
         AtherumPopulationStore,
         build_default_population,
     )
@@ -14,6 +15,7 @@ def test_aoasis_namespace_exposes_variant_identity_and_core_apis():
     assert aoasis.AOASIS_VARIANT_NAME == "A-Oasis"
     assert oasis.AOASIS_VARIANT_NAME == "A-Oasis"
     assert oasis.AtherumPopulationStore is AtherumPopulationStore
+    assert oasis.AOasisWorkerService is AOasisWorkerService
     assert callable(build_default_population)
 
 

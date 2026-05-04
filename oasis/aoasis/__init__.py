@@ -30,6 +30,12 @@ from oasis.aoasis.run_config import (AOASIS_EXECUTION_MODES,
                                      AOasisRunConfig)
 from oasis.aoasis.runner import (AOasisRunResult, execute_aoasis_run,
                                  finalize_aoasis_run)
+from oasis.aoasis.worker import (
+    AOasisWorkerError,
+    AOasisWorkerService,
+    build_worker_result,
+    make_aoasis_worker_server,
+)
 
 __all__ = [
     "AOASIS_VARIANT_NAME",
@@ -41,6 +47,8 @@ __all__ = [
     "AOasisPlatformOutput",
     "AOasisRunConfig",
     "AOasisRunResult",
+    "AOasisWorkerError",
+    "AOasisWorkerService",
     "AOasisSocialAction",
     "AOasisSocialComment",
     "AOasisSocialPost",
@@ -55,6 +63,7 @@ __all__ = [
     "build_evidence_summary",
     "build_graph_from_population",
     "build_scribe_markdown",
+    "build_worker_result",
     "estimate_run_cost",
     "extract_memory_updates_from_trace",
     "execute_aoasis_run",
@@ -62,4 +71,5 @@ __all__ = [
     "normalize_platform_db",
     "platform_action_policy",
     "prepare_aoasis_run",
+    "make_aoasis_worker_server",
 ]
