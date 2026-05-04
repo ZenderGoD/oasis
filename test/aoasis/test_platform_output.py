@@ -89,6 +89,13 @@ def test_normalize_output_maps_population_stable_society_agent_ids(tmp_path):
     assert output.actions[0].stable_agent_id == (
         "workspace-sneaker-audience:baseline:slot-000"
     )
+    assert output.posts[0].agent_context["social_bubble"] == (
+        population.agents[0].profile.metadata["atherum"]["social_bubble"]
+    )
+    assert output.posts[0].comments[0].agent_context["life_role"] == (
+        population.agents[1].profile.metadata["atherum"]["life_role"]
+    )
+    assert "platform_habits" in output.actions[0].agent_context
 
 
 def _create_social_db(tmp_path):

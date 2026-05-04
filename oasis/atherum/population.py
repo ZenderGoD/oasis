@@ -18,11 +18,15 @@ from oasis.social_platform.typing import ActionType
 class AtherumAgentArchetype:
     key: str
     display_role: str
+    life_role: str
+    social_bubble: str
     temperament: str
     decision_style: str
+    worldview: str
     interests: tuple[str, ...]
     dislikes: tuple[str, ...]
     trust_needs: tuple[str, ...]
+    platform_habits: tuple[str, ...]
     action_bias: dict[str, float]
     mbti: str
 
@@ -31,12 +35,20 @@ ATHERUM_DEFAULT_ARCHETYPES = (
     AtherumAgentArchetype(
         key="skeptical_buyer",
         display_role="Skeptical Buyer",
+        life_role="household budget owner comparing everyday purchases",
+        social_bubble="value-seeking buyers",
         temperament="cautious, detail-oriented, risk-sensitive",
         decision_style="compares alternatives before sharing or buying",
+        worldview="good products should prove utility before asking for trust",
         interests=("durability", "clear pricing", "warranty signals"),
         dislikes=("vague claims", "over-polished renders",
                   "hidden tradeoffs"),
         trust_needs=("material proof", "price anchor", "return policy"),
+        platform_habits=(
+            "reads comments before clicking through",
+            "saves only when specs and price are clear",
+            "pushes back on hype-first launch claims",
+        ),
         action_bias={
             "comment": 0.48,
             "like": 0.08,
@@ -49,13 +61,21 @@ ATHERUM_DEFAULT_ARCHETYPES = (
     AtherumAgentArchetype(
         key="visual_amplifier",
         display_role="Visual Amplifier",
+        life_role="trend-forward creator curating visual finds",
+        social_bubble="early visual adopters",
         temperament="novelty-seeking, aesthetic, socially responsive",
         decision_style="shares quickly when the visual hook feels fresh",
+        worldview="distinctive creative earns attention before full proof arrives",
         interests=("visual polish", "limited drops", "feed appeal"),
         dislikes=("generic category templates", "flat lighting",
                   "low-status presentation"),
         trust_needs=("distinctive style", "brand specificity",
                      "social momentum"),
+        platform_habits=(
+            "reposts strong visuals early",
+            "quotes launches with taste-led framing",
+            "uses comments to test whether others feel the same pull",
+        ),
         action_bias={
             "comment": 0.34,
             "like": 0.22,
@@ -68,12 +88,20 @@ ATHERUM_DEFAULT_ARCHETYPES = (
     AtherumAgentArchetype(
         key="brand_strategist",
         display_role="Brand Strategist",
+        life_role="brand operator reading category and positioning signals",
+        social_bubble="brand-literate strategists",
         temperament="analytical, positioning-aware, brand-loyal",
         decision_style="reads visual hierarchy and market fit first",
+        worldview="creative should encode a coherent market promise",
         interests=("category clarity", "brand grammar", "trust cues"),
         dislikes=("positioning drift", "derivative motifs",
                   "unclear audience fit"),
         trust_needs=("coherent story", "brand mark", "audience signal"),
+        platform_habits=(
+            "writes critique threads",
+            "quotes posts to name positioning risks",
+            "tracks how first replies frame the brand",
+        ),
         action_bias={
             "comment": 0.42,
             "like": 0.1,
@@ -86,13 +114,21 @@ ATHERUM_DEFAULT_ARCHETYPES = (
     AtherumAgentArchetype(
         key="practical_merchandiser",
         display_role="Retail Merchandiser",
+        life_role="retail operator judging sell-through and shelf readiness",
+        social_bubble="commercial pragmatists",
         temperament="pragmatic, price-aware, conversion-focused",
         decision_style="looks for shelf-readiness and purchase friction",
+        worldview="attention only matters when it turns into qualified demand",
         interests=("conversion context", "use case clarity", "margin fit"),
         dislikes=("missing specs", "unclear price band",
                   "assets without scale"),
         trust_needs=("product context", "size/material cues",
                      "buyer proof"),
+        platform_habits=(
+            "comments with conversion objections",
+            "shares only when the use case is obvious",
+            "compares creative polish against likely margin and returns",
+        ),
         action_bias={
             "comment": 0.44,
             "like": 0.1,
@@ -147,11 +183,15 @@ def build_default_population(
                     "atherum": {
                         "archetype": archetype.key,
                         "role": archetype.display_role,
+                        "life_role": archetype.life_role,
+                        "social_bubble": archetype.social_bubble,
                         "temperament": archetype.temperament,
                         "decision_style": archetype.decision_style,
+                        "worldview": archetype.worldview,
                         "interests": list(archetype.interests),
                         "dislikes": list(archetype.dislikes),
                         "trust_needs": list(archetype.trust_needs),
+                        "platform_habits": list(archetype.platform_habits),
                         "action_bias": dict(archetype.action_bias),
                     }
                 },
@@ -185,11 +225,15 @@ def build_graph_from_population(
 def _profile_text(archetype: AtherumAgentArchetype) -> str:
     return "\n".join([
         f"Role: {archetype.display_role}",
+        f"Life role: {archetype.life_role}",
+        f"Social bubble: {archetype.social_bubble}",
         f"Temperament: {archetype.temperament}",
         f"Decision style: {archetype.decision_style}",
+        f"Worldview: {archetype.worldview}",
         f"Likes: {', '.join(archetype.interests)}",
         f"Dislikes: {', '.join(archetype.dislikes)}",
         f"Trust needs: {', '.join(archetype.trust_needs)}",
+        f"Platform habits: {', '.join(archetype.platform_habits)}",
         "Behavior rule: react like a public social media user, not a test "
         "operator.",
     ])

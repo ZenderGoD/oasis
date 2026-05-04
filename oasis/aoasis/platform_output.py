@@ -20,6 +20,7 @@ class AOasisSocialComment:
     metrics: dict[str, int]
     agent_id: int | None = None
     stable_agent_id: str | None = None
+    agent_context: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -36,6 +37,7 @@ class AOasisSocialPost:
     quote_content: str | None = None
     agent_id: int | None = None
     stable_agent_id: str | None = None
+    agent_context: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -48,6 +50,7 @@ class AOasisSocialAction:
     target_id: int | None = None
     agent_id: int | None = None
     stable_agent_id: str | None = None
+    agent_context: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -72,12 +75,14 @@ def normalize_platform_db(
     try:
         users = _load_users(db)
         stable_ids = _stable_agent_ids(population)
+        agent_contexts = _agent_contexts(population)
         comments_by_post = _load_comments_by_post(db, users,
                                                   stable_ids,
+                                                  agent_contexts,
                                                   normalized_platform)
         posts = _load_posts(db, users, stable_ids, comments_by_post,
-                            normalized_platform)
-        actions = _load_actions(db, users, stable_ids)
+                            agent_contexts, normalized_platform)
+        actions = _load_actions(db, users, stable_ids, agent_contexts)
     finally:
         db.close()
 
@@ -102,6 +107,7 @@ def _load_comments_by_post(
     db: sqlite3.Connection,
     users: dict[int, sqlite3.Row],
     stable_ids: dict[int, str],
+    agent_contexts: dict[int, dict[str, Any]],
     platform: str,
 ) -> dict[int, list[AOasisSocialComment]]:
     rows = db.execute("""
@@ -118,6 +124,7 @@ def _load_comments_by_post(
                 comment_id=row["comment_id"],
                 agent_id=agent_id,
                 stable_agent_id=_stable_id(stable_ids, agent_id),
+                agent_context=_agent_context(agent_contexts, agent_id),
                 surface=_comment_surface(platform),
                 author_name=_user_name(user),
                 author_handle=_user_handle(user, platform),
@@ -133,6 +140,7 @@ def _load_posts(
     users: dict[int, sqlite3.Row],
     stable_ids: dict[int, str],
     comments_by_post: dict[int, list[AOasisSocialComment]],
+    agent_contexts: dict[int, dict[str, Any]],
     platform: str,
 ) -> list[AOasisSocialPost]:
     rows = db.execute("""
@@ -151,6 +159,7 @@ def _load_posts(
                 post_id=row["post_id"],
                 agent_id=agent_id,
                 stable_agent_id=_stable_id(stable_ids, agent_id),
+                agent_context=_agent_context(agent_contexts, agent_id),
                 surface=_post_surface(platform),
                 author_name=_user_name(user),
                 author_handle=_user_handle(user, platform),
@@ -168,6 +177,7 @@ def _load_actions(
     db: sqlite3.Connection,
     users: dict[int, sqlite3.Row],
     stable_ids: dict[int, str],
+    agent_contexts: dict[int, dict[str, Any]],
 ) -> list[AOasisSocialAction]:
     rows = db.execute("""
         SELECT *
@@ -183,6 +193,7 @@ def _load_actions(
             AOasisSocialAction(
                 agent_id=agent_id,
                 stable_agent_id=_stable_id(stable_ids, agent_id),
+                agent_context=_agent_context(agent_contexts, agent_id),
                 actor_name=_user_name(user),
                 actor_handle=_user_handle(user, "twitter"),
                 action_type=row["action"],
@@ -276,6 +287,37 @@ def _stable_agent_ids(
         agent.numeric_agent_id: agent.stable_agent_id
         for agent in population.agents
     }
+
+
+def _agent_contexts(
+    population: PersistentPopulationSnapshot | None,
+) -> dict[int, dict[str, Any]]:
+    if population is None:
+        return {}
+    contexts = {}
+    for agent in population.agents:
+        atherum = agent.profile.metadata.get("atherum")
+        if isinstance(atherum, dict):
+            contexts[agent.numeric_agent_id] = {
+                "role": atherum.get("role"),
+                "life_role": atherum.get("life_role"),
+                "social_bubble": atherum.get("social_bubble"),
+                "worldview": atherum.get("worldview"),
+                "interests": list(atherum.get("interests") or []),
+                "dislikes": list(atherum.get("dislikes") or []),
+                "trust_needs": list(atherum.get("trust_needs") or []),
+                "platform_habits": list(atherum.get("platform_habits") or []),
+            }
+    return contexts
+
+
+def _agent_context(
+    agent_contexts: dict[int, dict[str, Any]],
+    agent_id: int | None,
+) -> dict[str, Any]:
+    if agent_id is None:
+        return {}
+    return dict(agent_contexts.get(agent_id, {}))
 
 
 def _stable_id(stable_ids: dict[int, str], agent_id: int | None) -> str | None:

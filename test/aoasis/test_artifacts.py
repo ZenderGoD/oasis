@@ -22,6 +22,11 @@ def test_build_evidence_summary_extracts_platform_totals_and_common_signals():
                     content="Need price, warranty, and material proof.",
                     created_at="0",
                     metrics={"upvotes": 3, "downvotes": 0, "comments": 0},
+                    stable_agent_id="agent-001",
+                    agent_context={
+                        "social_bubble": "value-seeking buyers",
+                        "life_role": "household budget owner",
+                    },
                 )
             ],
             actions=[
@@ -40,6 +45,7 @@ def test_build_evidence_summary_extracts_platform_totals_and_common_signals():
     summary = build_evidence_summary(outputs)
 
     assert summary.platforms == {"reddit": {"posts": 1, "actions": 1}}
+    assert summary.audience_segments == {"value-seeking buyers": 1}
     assert "price" in summary.signals
     assert "warranty" in summary.signals
     assert summary.representative_quotes == [
@@ -61,4 +67,5 @@ def test_build_scribe_markdown_is_llm_ready():
 
     assert "# A-Oasis Evidence Brief" in markdown
     assert "instagram" in markdown
+    assert "Audience Segments" in markdown
     assert "Signals" in markdown

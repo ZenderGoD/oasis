@@ -55,6 +55,29 @@ def test_population_profiles_include_human_like_preference_dimensions():
     assert atherum["action_bias"]["comment"] > 0
 
 
+def test_population_profiles_include_society_and_platform_dimensions():
+    profiles = build_default_population(
+        population_id="workspace-sneaker-audience",
+        count=8,
+        seed="baseline",
+    )
+
+    first = profiles[0]
+    first_profile = first.profile["other_info"]["user_profile"]
+    first_atherum = first.metadata["atherum"]
+
+    assert "Life role:" in first_profile
+    assert "Social bubble:" in first_profile
+    assert "Worldview:" in first_profile
+    assert "Platform habits:" in first_profile
+    assert first_atherum["life_role"]
+    assert first_atherum["social_bubble"]
+    assert first_atherum["worldview"]
+    assert len(first_atherum["platform_habits"]) >= 2
+    assert len({profile.metadata["atherum"]["social_bubble"]
+                for profile in profiles}) >= 3
+
+
 def test_population_cycles_archetypes_when_count_exceeds_default_set():
     profiles = build_default_population(
         population_id="workspace-sneaker-audience",
