@@ -15,6 +15,7 @@ __version__ = "0.2.5"
 
 from oasis import aoasis, atherum
 from oasis.aoasis import (AOASIS_EXECUTION_MODES,
+                           AOASIS_WORKER_RUNTIME_MODES,
                            AOASIS_SUPPORTED_PLATFORMS, AOASIS_VARIANT_NAME,
                            ATHERUM_DEFAULT_ARCHETYPES, AOasisEvidenceSummary,
                            AOasisPlatformOutput, AOasisPreparedRun,
@@ -58,7 +59,7 @@ __all__ = [
     "PersistentAgentState", "PersistentPopulationSnapshot",
     "ATHERUM_DEFAULT_ARCHETYPES", "AtherumAgentArchetype",
     "AOASIS_EXECUTION_MODES", "AOASIS_SUPPORTED_PLATFORMS",
-    "AOASIS_VARIANT_NAME",
+    "AOASIS_VARIANT_NAME", "AOASIS_WORKER_RUNTIME_MODES",
     "AOasisEvidenceSummary", "AOasisPlatformOutput", "AOasisPreparedRun",
     "AOasisRunConfig", "AOasisRunResult",
     "AOasisWorkerError", "AOasisWorkerService",

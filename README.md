@@ -72,11 +72,20 @@ Run the local A-Oasis worker:
 .venv/bin/python -m oasis.aoasis.worker_server --host 127.0.0.1 --port 4001
 ```
 
-For deterministic local testing where `POST /api/v1/simulations` completes
-before returning:
+The worker has three runtime modes:
+
+- `deterministic`: fast no-network contract testing with synthetic A-Oasis
+  events.
+- `oasis-manual`: runs the real OASIS environment/database path with seeded
+  Atherum society profiles and manual platform actions.
+- `oasis-llm`: uses OASIS `LLMAction`; embedding applications must inject a
+  real CAMEL model backend or model resolver.
+
+For local testing where `POST /api/v1/simulations` completes before returning
+and the worker uses the real OASIS environment path:
 
 ```bash
-.venv/bin/python -m oasis.aoasis.worker_server --host 127.0.0.1 --port 4001 --sync
+.venv/bin/python -m oasis.aoasis.worker_server --host 127.0.0.1 --port 4001 --sync --runtime oasis-manual
 ```
 
 Point Atherum at it with:

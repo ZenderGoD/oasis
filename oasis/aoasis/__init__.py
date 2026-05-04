@@ -31,6 +31,7 @@ from oasis.aoasis.run_config import (AOASIS_EXECUTION_MODES,
 from oasis.aoasis.runner import (AOasisRunResult, execute_aoasis_run,
                                  finalize_aoasis_run)
 from oasis.aoasis.worker import (
+    AOASIS_WORKER_RUNTIME_MODES,
     AOasisWorkerError,
     AOasisWorkerService,
     build_worker_result,
@@ -41,6 +42,7 @@ __all__ = [
     "AOASIS_VARIANT_NAME",
     "AOASIS_SUPPORTED_PLATFORMS",
     "AOASIS_EXECUTION_MODES",
+    "AOASIS_WORKER_RUNTIME_MODES",
     "AOasisEvidenceSummary",
     "AOasisCostEstimate",
     "AOasisPreparedRun",

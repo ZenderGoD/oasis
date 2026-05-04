@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import threading
+from collections.abc import Callable
 from dataclasses import asdict
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -10,8 +11,17 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 from oasis.aoasis.cost import estimate_run_cost
+from oasis.aoasis.runner import AOasisRunResult, execute_aoasis_run
 from oasis.aoasis.run_config import AOasisRunConfig
-from oasis.atherum import AOASIS_VARIANT_NAME
+from oasis.atherum import (AOASIS_VARIANT_NAME, AtherumPopulationStore,
+                           PersistentAgentProfile)
+
+AOASIS_WORKER_RUNTIME_MODES = (
+    "deterministic",
+    "oasis-manual",
+    "oasis-llm",
+)
+ModelResolver = Callable[[str], object]
 
 
 class AOasisWorkerError(Exception):
@@ -24,10 +34,20 @@ class AOasisWorkerError(Exception):
 class AOasisWorkerService:
     """Atherum-compatible local worker around the A-Oasis runtime contract."""
 
-    def __init__(self, root_dir: str | Path, run_in_background: bool = True):
+    def __init__(
+        self,
+        root_dir: str | Path,
+        run_in_background: bool = True,
+        runtime_mode: str = "deterministic",
+        model_backend: object | None = None,
+        model_resolver: ModelResolver | None = None,
+    ):
         self.root_dir = Path(root_dir)
         self.root_dir.mkdir(parents=True, exist_ok=True)
         self.run_in_background = run_in_background
+        self.runtime_mode = _runtime_mode(runtime_mode)
+        self.model_backend = model_backend
+        self.model_resolver = model_resolver
         self._lock = threading.Lock()
         self._runs: dict[str, dict[str, Any]] = {}
 
@@ -35,6 +55,7 @@ class AOasisWorkerService:
         return {
             "status": "ok",
             "variant": AOASIS_VARIANT_NAME,
+            "runtime": self.runtime_mode,
         }
 
     def start_simulation(self, request: dict[str, Any]) -> dict[str, str]:
@@ -60,7 +81,8 @@ class AOasisWorkerService:
             status = "running"
         else:
             self._complete_simulation(simulation_id)
-            status = "completed"
+            with self._lock:
+                status = str(self._runs[simulation_id]["status"])
 
         return {
             "simulationId": simulation_id,
@@ -87,7 +109,13 @@ class AOasisWorkerService:
         try:
             with self._lock:
                 request = dict(self._runs[simulation_id]["request"])
-            result = build_worker_result(request)
+            result = build_worker_result(
+                request,
+                root_dir=self.root_dir,
+                runtime_mode=self.runtime_mode,
+                model_backend=self.model_backend,
+                model_resolver=self.model_resolver,
+            )
             with self._lock:
                 self._runs[simulation_id]["status"] = "completed"
                 self._runs[simulation_id]["result"] = result
@@ -97,7 +125,26 @@ class AOasisWorkerService:
                 self._runs[simulation_id]["error"] = str(error)
 
 
-def build_worker_result(request: dict[str, Any]) -> dict[str, Any]:
+def build_worker_result(
+    request: dict[str, Any],
+    root_dir: str | Path | None = None,
+    runtime_mode: str = "deterministic",
+    model_backend: object | None = None,
+    model_resolver: ModelResolver | None = None,
+) -> dict[str, Any]:
+    runtime = _runtime_mode(runtime_mode)
+    if runtime == "deterministic":
+        return _build_deterministic_worker_result(request)
+    return _build_oasis_worker_result(
+        request=request,
+        root_dir=Path(root_dir or "."),
+        runtime_mode=runtime,
+        model_backend=model_backend,
+        model_resolver=model_resolver,
+    )
+
+
+def _build_deterministic_worker_result(request: dict[str, Any]) -> dict[str, Any]:
     simulation_id = _required_string(request, "id")
     platform = _platform(request)
     config = _run_config(request)
@@ -115,6 +162,318 @@ def build_worker_result(request: dict[str, Any]) -> dict[str, Any]:
         private_context=private_context,
         duration_hours=config.duration_hours,
     )
+    return _result_from_events(
+        simulation_id=simulation_id,
+        platform=platform,
+        config=config,
+        personas=personas,
+        events=events,
+        media_urls=media_urls,
+        seed_text=seed_text,
+        runner="aoasis",
+        cost_estimate=cost,
+    )
+
+
+def _build_oasis_worker_result(
+    request: dict[str, Any],
+    root_dir: Path,
+    runtime_mode: str,
+    model_backend: object | None,
+    model_resolver: ModelResolver | None,
+) -> dict[str, Any]:
+    simulation_id = _required_string(request, "id")
+    platform = _platform(request)
+    execution_mode = "llm" if runtime_mode == "oasis-llm" else "manual"
+    config = _run_config(request, execution_mode=execution_mode)
+    personas = _personas(request)
+    media_urls = _media_urls(request)
+    seed_text = _seed_text(request)
+    model = _model_backend(
+        runtime_mode=runtime_mode,
+        model_name=config.model,
+        model_backend=model_backend,
+        model_resolver=model_resolver,
+    )
+
+    store_path = root_dir / "aoasis-populations.db"
+    with AtherumPopulationStore(store_path) as store:
+        store.ensure_population(
+            config.population_id,
+            _profiles_from_personas(
+                population_id=config.population_id,
+                personas=personas,
+                active_agents=config.active_agents,
+            ),
+            metadata={
+                "source": "atherum-worker-request",
+                "variant": AOASIS_VARIANT_NAME,
+                "runtime": runtime_mode,
+            },
+        )
+        run_result = execute_aoasis_run(
+            store=store,
+            config=config,
+            work_dir=root_dir / "runs" / simulation_id,
+            seed=simulation_id,
+            model=model,
+        )
+
+    return _worker_result_from_aoasis_run(
+        simulation_id=simulation_id,
+        platform=platform,
+        run_result=run_result,
+        personas=personas,
+        media_urls=media_urls,
+        seed_text=seed_text,
+        runner=f"aoasis-{runtime_mode}",
+    )
+
+
+def _runtime_mode(value: str) -> str:
+    runtime = str(value or "deterministic").strip().lower()
+    if runtime not in AOASIS_WORKER_RUNTIME_MODES:
+        raise AOasisWorkerError(
+            400,
+            f"runtime_mode must be one of {AOASIS_WORKER_RUNTIME_MODES}",
+        )
+    return runtime
+
+
+def _model_backend(
+    runtime_mode: str,
+    model_name: str,
+    model_backend: object | None,
+    model_resolver: ModelResolver | None,
+) -> object:
+    if runtime_mode == "oasis-manual":
+        return False
+    if model_backend is not None:
+        return model_backend
+    if model_resolver is not None:
+        return model_resolver(model_name)
+    raise ValueError(
+        "A-Oasis LLM runtime requires a model backend or model resolver. "
+        "Use deterministic or oasis-manual for local no-network testing.")
+
+
+def _profiles_from_personas(
+    population_id: str,
+    personas: list[dict[str, Any]],
+    active_agents: int,
+) -> list[PersistentAgentProfile]:
+    profiles = []
+    count = max(1, active_agents)
+    for index in range(count):
+        persona = personas[index % len(personas)]
+        context = _agent_context(persona)
+        traits = persona.get("behaviorTraits")
+        traits = traits if isinstance(traits, dict) else {}
+        society_core = context.get("societyCore")
+        base_id = _persona_id(persona, index % len(personas))
+        stable_agent_id = base_id if index < len(personas) else (
+            f"{base_id}:aoasis-slot-{index:03d}")
+        role = (
+            persona.get("archetype")
+            or (society_core.get("modeRole")
+                if isinstance(society_core, dict) else None)
+            or "Atherum society agent"
+        )
+        profile_text = _profile_text_from_persona(persona, context)
+        profiles.append(
+            PersistentAgentProfile(
+                stable_agent_id=str(stable_agent_id),
+                numeric_agent_id=index,
+                user_name=f"{_slug(str(persona.get('name') or role))}_{index:03d}",
+                name=str(persona.get("name") or role),
+                description=str(persona.get("personalityPrompt") or role),
+                profile={
+                    "other_info": {
+                        "user_profile": profile_text,
+                        "gender": "unknown",
+                        "age": 0,
+                        "mbti": str(traits.get("mbti") or "unknown"),
+                        "country": "unknown",
+                    }
+                },
+                metadata={
+                    "atherum": {
+                        "role": str(role),
+                        "life_role": str(traits.get("lifeRole") or role),
+                        "social_bubble": _first(context.get("socialGroups"),
+                                                "general public"),
+                        "worldview": str(traits.get("worldview")
+                                         or persona.get("personalityPrompt")
+                                         or ""),
+                        "interests": _string_list(context.get("interests")),
+                        "dislikes": _string_list(context.get("dislikes")),
+                        "trust_needs": _string_list(context.get("trustNeeds")),
+                        "platform_habits": _string_list(
+                            traits.get("platformHabits")
+                            or context.get("socialGroups")),
+                        "action_bias": dict(traits.get("actionBias") or {}),
+                    },
+                    "societyCore": society_core,
+                },
+            ))
+    return profiles
+
+
+def _profile_text_from_persona(
+    persona: dict[str, Any],
+    context: dict[str, Any],
+) -> str:
+    rows = [
+        f"Name: {persona.get('name') or 'Atherum society agent'}",
+        f"Role: {persona.get('archetype') or 'public audience member'}",
+        f"Personality: {persona.get('personalityPrompt') or 'reacts naturally'}",
+        f"Traits: {', '.join(_string_list(context.get('traits')))}",
+        f"Likes: {', '.join(_string_list(context.get('interests')))}",
+        f"Dislikes: {', '.join(_string_list(context.get('dislikes')))}",
+        f"Trust needs: {', '.join(_string_list(context.get('trustNeeds')))}",
+        f"Social bubbles: {', '.join(_string_list(context.get('socialGroups')))}",
+        "Behavior rule: act like a public social media user, not a test "
+        "operator.",
+    ]
+    return "\n".join(row for row in rows if not row.endswith(": "))
+
+
+def _worker_result_from_aoasis_run(
+    simulation_id: str,
+    platform: str,
+    run_result: AOasisRunResult,
+    personas: list[dict[str, Any]],
+    media_urls: list[str],
+    seed_text: str,
+    runner: str,
+) -> dict[str, Any]:
+    output = run_result.outputs[platform]
+    events = _events_from_platform_output(output, run_result.config)
+    return _result_from_events(
+        simulation_id=simulation_id,
+        platform=platform,
+        config=run_result.config,
+        personas=personas,
+        events=events,
+        media_urls=media_urls,
+        seed_text=seed_text,
+        runner=runner,
+        cost_estimate=run_result.cost_estimate,
+        extra_metadata={
+            "evidenceSummary": run_result.evidence_summary.platforms,
+            "scribeMarkdown": run_result.scribe_markdown,
+        },
+    )
+
+
+def _events_from_platform_output(
+    output: Any,
+    config: AOasisRunConfig,
+) -> list[dict[str, Any]]:
+    events: list[dict[str, Any]] = []
+    seen_content_actions: set[tuple[str, str]] = set()
+    for post in output.posts:
+        key = ("create_post", post.content)
+        seen_content_actions.add(key)
+        events.append(
+            _event_from_social_item(
+                action="create_post",
+                raw_action="create_post",
+                agent_id=post.stable_agent_id or str(post.agent_id),
+                user_id=post.author_handle,
+                post_id=post.post_id,
+                text=post.content,
+                created_at=post.created_at,
+                metrics=post.metrics,
+                agent_context=post.agent_context,
+                config=config,
+            ))
+        for comment in post.comments:
+            key = ("create_comment", comment.content)
+            seen_content_actions.add(key)
+            events.append(
+                _event_from_social_item(
+                    action="create_comment",
+                    raw_action="create_comment",
+                    agent_id=comment.stable_agent_id or str(comment.agent_id),
+                    user_id=comment.author_handle,
+                    post_id=post.post_id,
+                    comment_id=comment.comment_id,
+                    text=comment.content,
+                    created_at=comment.created_at,
+                    metrics=comment.metrics,
+                    agent_context=comment.agent_context,
+                    config=config,
+                ))
+
+    for action in output.actions:
+        normalized_action = str(action.action_type or "").strip().lower()
+        duplicate_key = (normalized_action, action.text)
+        if normalized_action in {"create_post", "create_comment"
+                                } and duplicate_key in seen_content_actions:
+            continue
+        events.append(
+            _event_from_social_item(
+                action=normalized_action or "action",
+                raw_action=normalized_action or "action",
+                agent_id=action.stable_agent_id or str(action.agent_id),
+                user_id=action.actor_handle,
+                post_id=action.target_id,
+                text=action.text,
+                created_at=action.created_at,
+                metrics={},
+                agent_context=action.agent_context,
+                config=config,
+            ))
+    return events
+
+
+def _event_from_social_item(
+    action: str,
+    raw_action: str,
+    agent_id: str | None,
+    user_id: str,
+    post_id: int | None,
+    text: str,
+    created_at: str,
+    metrics: dict[str, int],
+    agent_context: dict[str, Any],
+    config: AOasisRunConfig,
+    comment_id: int | None = None,
+) -> dict[str, Any]:
+    sentiment = _sentiment_for_text(text)
+    return {
+        "action": action,
+        "rawAction": raw_action,
+        "agentId": str(agent_id or user_id or "unknown"),
+        "userId": str(user_id or agent_id or "unknown"),
+        "postId": post_id,
+        "commentId": comment_id,
+        "text": text,
+        "sentiment": sentiment,
+        "virtualHour": _created_at_hour(created_at, config.duration_hours),
+        "engagementDelta": max(1, _metric_total(metrics)),
+        "metadata": {
+            "source": "oasis-output",
+            "platform": config.platforms[0],
+            "agentContext": dict(agent_context),
+            "createdAt": created_at,
+        },
+    }
+
+
+def _result_from_events(
+    simulation_id: str,
+    platform: str,
+    config: AOasisRunConfig,
+    personas: list[dict[str, Any]],
+    events: list[dict[str, Any]],
+    media_urls: list[str],
+    seed_text: str,
+    runner: str,
+    cost_estimate: Any,
+    extra_metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     visible_events = [
         event for event in events
         if event["action"] in {"create_post", "create_comment", "quote_post"}
@@ -136,7 +495,19 @@ def build_worker_result(request: dict[str, Any]) -> dict[str, Any]:
     negative = sum(1 for event in events if event["sentiment"] < -0.1)
     neutral = max(0, len(events) - positive - negative)
     impressions = max(100, config.active_agents * 35 + total_engagements * 12)
-
+    metadata = {
+        "runner": runner,
+        "variant": AOASIS_VARIANT_NAME,
+        "platform": platform,
+        "model": config.model,
+        "mediaUrls": media_urls,
+        "agentContexts": [_agent_context(persona) for persona in personas],
+        "oasisEvents": events,
+        "costEstimate": asdict(cost_estimate),
+        "publicSeed": seed_text,
+    }
+    if extra_metadata:
+        metadata.update(extra_metadata)
     return {
         "simulationId": simulation_id,
         "status": "completed",
@@ -154,19 +525,9 @@ def build_worker_result(request: dict[str, Any]) -> dict[str, Any]:
         }],
         "timeline": _timeline(platform, visible_events, total_engagements),
         "network": _network(personas),
-        "costUsd": float(cost.usd or 0),
+        "costUsd": float(cost_estimate.usd or 0),
         "completedAt": None,
-        "metadata": {
-            "runner": "aoasis",
-            "variant": AOASIS_VARIANT_NAME,
-            "platform": platform,
-            "model": config.model,
-            "mediaUrls": media_urls,
-            "agentContexts": [_agent_context(persona) for persona in personas],
-            "oasisEvents": events,
-            "costEstimate": asdict(cost),
-            "publicSeed": seed_text,
-        },
+        "metadata": metadata,
     }
 
 
@@ -250,7 +611,10 @@ def _platform(request: dict[str, Any]) -> str:
     return normalized
 
 
-def _run_config(request: dict[str, Any]) -> AOasisRunConfig:
+def _run_config(
+    request: dict[str, Any],
+    execution_mode: str = "manual",
+) -> AOasisRunConfig:
     platform = request.get("platform") if isinstance(request.get("platform"),
                                                      dict) else {}
     run_config = request.get("runConfig") if isinstance(
@@ -263,7 +627,7 @@ def _run_config(request: dict[str, Any]) -> AOasisRunConfig:
         background_agents=_int(request.get("backgroundAgentCount"), 0),
         duration_hours=_int(platform.get("durationHours"), 1),
         minutes_per_round=60,
-        execution_mode="manual",
+        execution_mode=execution_mode,
         model=str(request.get("modelName") or run_config.get("modelName")
                   or "google/gemini-3.1-flash-lite-preview"),
         public_seed=_seed_text(request),
@@ -438,6 +802,68 @@ def _agent_context(persona: dict[str, Any]) -> dict[str, Any]:
                            or traits.get("societyTrustNeeds") or []),
         "socialGroups": list(traits.get("socialGroups") or []),
     }
+
+
+def _first(value: Any, fallback: str) -> str:
+    items = _string_list(value)
+    return items[0] if items else fallback
+
+
+def _string_list(value: Any) -> list[str]:
+    if not isinstance(value, (list, tuple)):
+        return []
+    return [str(item) for item in value if item is not None]
+
+
+def _slug(value: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "_", value.strip().lower()).strip("_")
+    return slug or "aoasis_agent"
+
+
+def _metric_total(metrics: dict[str, int]) -> int:
+    return sum(int(value) for value in metrics.values()
+               if isinstance(value, int))
+
+
+def _created_at_hour(created_at: str, duration_hours: int) -> int:
+    try:
+        raw = int(float(created_at))
+    except (TypeError, ValueError):
+        return 0
+    return max(0, raw) % max(1, duration_hours)
+
+
+def _sentiment_for_text(text: str) -> float:
+    lowered = text.lower()
+    positive_words = (
+        "strong",
+        "polished",
+        "share",
+        "credible",
+        "trust",
+        "premium",
+        "clean",
+        "hook",
+        "buy",
+    )
+    negative_words = (
+        "skeptic",
+        "vague",
+        "missing",
+        "risk",
+        "warranty",
+        "doubt",
+        "criticize",
+        "unclear",
+        "scroll",
+    )
+    score = sum(1 for word in positive_words if word in lowered)
+    score -= sum(1 for word in negative_words if word in lowered)
+    if score > 0:
+        return min(0.8, score * 0.18)
+    if score < 0:
+        return max(-0.8, score * 0.18)
+    return 0.0
 
 
 def _reach_by_hour(duration_hours: int, impressions: int) -> list[dict[str, int]]:

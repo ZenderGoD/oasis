@@ -39,6 +39,63 @@ def test_worker_service_runs_atherum_request_and_returns_result_contract(
     ] == "soc_001"
 
 
+def test_worker_service_reports_selected_runtime(tmp_path):
+    service = AOasisWorkerService(
+        tmp_path,
+        run_in_background=False,
+        runtime_mode="oasis-manual",
+    )
+
+    assert service.health()["runtime"] == "oasis-manual"
+
+
+def test_worker_service_can_run_real_oasis_manual_runtime(tmp_path):
+    service = AOasisWorkerService(
+        tmp_path,
+        run_in_background=False,
+        runtime_mode="oasis-manual",
+    )
+
+    started = service.start_simulation(
+        _worker_request("run-oasis-manual-reddit", "reddit"))
+    result = service.get_result("run-oasis-manual-reddit")
+
+    assert started == {
+        "simulationId": "run-oasis-manual-reddit",
+        "status": "completed",
+    }
+    assert result["status"] == "completed"
+    assert result["propagation"][0]["topComments"]
+    assert result["timeline"]
+    assert result["network"]["nodes"]
+    assert result["metadata"]["runner"] == "aoasis-oasis-manual"
+    assert result["metadata"]["oasisEvents"]
+    assert result["metadata"]["oasisEvents"][0]["metadata"][
+        "source"] == "oasis-output"
+    assert result["metadata"]["agentContexts"][0]["societyCore"][
+        "societyAgentId"
+    ] == "soc_001"
+
+
+def test_worker_service_exposes_llm_runtime_configuration_errors(tmp_path):
+    service = AOasisWorkerService(
+        tmp_path,
+        run_in_background=False,
+        runtime_mode="oasis-llm",
+    )
+
+    started = service.start_simulation(_worker_request("run-oasis-llm-twitter"))
+    assert started == {
+        "simulationId": "run-oasis-llm-twitter",
+        "status": "failed",
+    }
+    with pytest.raises(AOasisWorkerError) as error:
+        service.get_result("run-oasis-llm-twitter")
+
+    assert error.value.status_code == 500
+    assert "requires a model backend" in error.value.detail
+
+
 def test_worker_service_rejects_duplicate_simulation_ids(tmp_path):
     service = AOasisWorkerService(tmp_path, run_in_background=False)
     service.start_simulation(_worker_request("run-duplicate-twitter"))
