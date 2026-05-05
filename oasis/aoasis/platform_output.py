@@ -68,7 +68,7 @@ def normalize_platform_db(
 ) -> AOasisPlatformOutput:
     normalized_platform = platform.strip().lower()
     if normalized_platform not in {"twitter", "reddit", "instagram"}:
-        raise ValueError(f"Unsupported A-Oasis platform output: {platform}")
+        raise ValueError(f"Unsupported AOaSIS platform output: {platform}")
 
     db = sqlite3.connect(db_path)
     db.row_factory = sqlite3.Row

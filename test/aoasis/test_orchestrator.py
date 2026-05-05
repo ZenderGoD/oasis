@@ -25,7 +25,7 @@ def test_prepare_aoasis_run_creates_population_and_graph(tmp_path):
     assert prepared.population.population_id == "workspace-sneaker-audience"
     assert len(prepared.population.agents) == 4
     assert prepared.graph.get_num_nodes() == 4
-    assert prepared.population.metadata["variant"] == "A-Oasis"
+    assert prepared.population.metadata["variant"] == "AOaSIS"
     assert prepared.population.metadata["config"]["runId"] == "run-001"
     tool_names = {
         tool.func.__name__

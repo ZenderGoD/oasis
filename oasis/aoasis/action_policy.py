@@ -4,7 +4,7 @@ from oasis.social_platform.typing import ActionType
 
 
 def platform_action_policy(platform: str) -> list[ActionType]:
-    """Return the public actions an A-Oasis agent may use on a platform."""
+    """Return the public actions an AOaSIS agent may use on a platform."""
     normalized_platform = platform.strip().lower()
     if normalized_platform == "twitter":
         return [
@@ -43,4 +43,4 @@ def platform_action_policy(platform: str) -> list[ActionType]:
             ActionType.DO_NOTHING,
             ActionType.FOLLOW,
         ]
-    raise ValueError(f"Unsupported A-Oasis platform: {platform}")
+    raise ValueError(f"Unsupported AOaSIS platform: {platform}")

@@ -65,7 +65,7 @@ def test_build_scribe_markdown_is_llm_ready():
 
     markdown = build_scribe_markdown(summary)
 
-    assert "# A-Oasis Evidence Brief" in markdown
+    assert "# AOaSIS Evidence Brief" in markdown
     assert "instagram" in markdown
     assert "Audience Segments" in markdown
     assert "Signals" in markdown

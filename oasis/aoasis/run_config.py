@@ -74,7 +74,7 @@ def _normalize_platforms(platforms: tuple[str, ...]) -> tuple[str, ...]:
     for platform in platforms:
         value = platform.strip().lower()
         if value not in AOASIS_SUPPORTED_PLATFORMS:
-            raise ValueError(f"Unsupported A-Oasis platform: {platform}")
+            raise ValueError(f"Unsupported AOaSIS platform: {platform}")
         if value not in normalized:
             normalized.append(value)
     if not normalized:

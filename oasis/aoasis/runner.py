@@ -48,7 +48,7 @@ def finalize_aoasis_run(
             platform_db_path=db_path,
             scenario=config.private_context or config.public_seed,
             metadata={
-                "variant": "A-Oasis",
+                "variant": "AOaSIS",
                 "platform": normalized_platform,
                 "config": config.to_worker_payload(),
             },
@@ -115,7 +115,7 @@ async def _execute_aoasis_run_async(
         try:
             agents = [agent for _, agent in prepared.graph.get_agents()]
             if not agents:
-                raise ValueError("A-Oasis run requires at least one agent")
+                raise ValueError("AOaSIS run requires at least one agent")
             seed_agent = agents[0]
             seed_result = await seed_agent.perform_action_by_data(
                 ActionType.CREATE_POST,

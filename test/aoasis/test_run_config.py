@@ -27,7 +27,7 @@ def test_run_config_normalizes_platforms_and_builds_worker_payload():
     assert config.platforms == ("twitter", "instagram", "reddit")
     assert config.estimated_llm_calls() == 864
     assert config.to_worker_payload() == {
-        "variant": "A-Oasis",
+        "variant": "AOaSIS",
         "populationId": "workspace-sneaker-audience",
         "runId": "run-001",
         "platforms": ["twitter", "instagram", "reddit"],
@@ -48,7 +48,7 @@ def test_run_config_normalizes_platforms_and_builds_worker_payload():
 
 
 def test_run_config_rejects_invalid_platforms_and_non_positive_counts():
-    with pytest.raises(ValueError, match="Unsupported A-Oasis platform"):
+    with pytest.raises(ValueError, match="Unsupported AOaSIS platform"):
         AOasisRunConfig(
             population_id="workspace",
             run_id="run",

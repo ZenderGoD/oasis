@@ -32,7 +32,7 @@ def test_worker_service_runs_atherum_request_and_returns_result_contract(
     assert result["network"]["nodes"]
     assert result["network"]["communities"]
     assert result["metadata"]["runner"] == "aoasis"
-    assert result["metadata"]["variant"] == "A-Oasis"
+    assert result["metadata"]["variant"] == "AOaSIS"
     assert result["metadata"]["oasisEvents"]
     assert result["metadata"]["agentContexts"][0]["societyCore"][
         "societyAgentId"

@@ -21,5 +21,5 @@ def test_platform_action_policy_returns_platform_specific_actions():
 def test_platform_action_policy_rejects_unknown_platform():
     import pytest
 
-    with pytest.raises(ValueError, match="Unsupported A-Oasis platform"):
+    with pytest.raises(ValueError, match="Unsupported AOaSIS platform"):
         platform_action_policy("linkedin")

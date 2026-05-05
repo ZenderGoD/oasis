@@ -65,7 +65,7 @@ def build_scribe_markdown(summary: AOasisEvidenceSummary) -> str:
     signal_lines = [f"- {signal}" for signal in summary.signals]
     quote_lines = [f"- {quote}" for quote in summary.representative_quotes]
     return "\n".join([
-        "# A-Oasis Evidence Brief",
+        "# AOaSIS Evidence Brief",
         "",
         "## Platforms",
         *(platform_lines or ["- none"]),

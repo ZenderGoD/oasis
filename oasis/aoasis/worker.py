@@ -32,7 +32,7 @@ class AOasisWorkerError(Exception):
 
 
 class AOasisWorkerService:
-    """Atherum-compatible local worker around the A-Oasis runtime contract."""
+    """Atherum-compatible local worker around the AOaSIS runtime contract."""
 
     def __init__(
         self,
@@ -253,7 +253,7 @@ def _model_backend(
     if model_resolver is not None:
         return model_resolver(model_name)
     raise ValueError(
-        "A-Oasis LLM runtime requires a model backend or model resolver. "
+        "AOaSIS LLM runtime requires a model backend or model resolver. "
         "Use deterministic or oasis-manual for local no-network testing.")
 
 

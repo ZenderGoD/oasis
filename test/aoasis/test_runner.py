@@ -46,7 +46,7 @@ def test_finalize_aoasis_run_normalizes_outputs_updates_memory_and_artifacts(
             "actions": 1,
         }
     }
-    assert "# A-Oasis Evidence Brief" in result.scribe_markdown
+    assert "# AOaSIS Evidence Brief" in result.scribe_markdown
     assert result.cost_estimate.llm_calls == 1
     updated = store.load_population("workspace-sneaker-audience")
     assert "Need warranty proof before I would save this." in (
@@ -80,7 +80,7 @@ def test_execute_aoasis_run_creates_platform_dbs_outputs_and_memory(tmp_path):
     assert result.outputs["reddit"].totals["posts"] >= 1
     assert "New sneaker creative" in result.outputs["instagram"].posts[0].content
     assert "New sneaker creative" in result.outputs["reddit"].posts[0].content
-    assert "# A-Oasis Evidence Brief" in result.scribe_markdown
+    assert "# AOaSIS Evidence Brief" in result.scribe_markdown
     assert result.cost_estimate.llm_calls == 6
     updated = store.load_population("workspace-sneaker-audience")
     assert any(agent.memories for agent in updated.agents)

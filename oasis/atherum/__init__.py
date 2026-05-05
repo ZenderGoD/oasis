@@ -10,7 +10,7 @@ from oasis.atherum.persistence import (
     extract_memory_updates_from_trace,
 )
 
-AOASIS_VARIANT_NAME = "A-Oasis"
+AOASIS_VARIANT_NAME = "AOaSIS"
 
 __all__ = [
     "AOASIS_VARIANT_NAME",

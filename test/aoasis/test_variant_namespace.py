@@ -11,9 +11,9 @@ def test_aoasis_namespace_exposes_variant_identity_and_core_apis():
         build_default_population,
     )
 
-    assert AOASIS_VARIANT_NAME == "A-Oasis"
-    assert aoasis.AOASIS_VARIANT_NAME == "A-Oasis"
-    assert oasis.AOASIS_VARIANT_NAME == "A-Oasis"
+    assert AOASIS_VARIANT_NAME == "AOaSIS"
+    assert aoasis.AOASIS_VARIANT_NAME == "AOaSIS"
+    assert oasis.AOASIS_VARIANT_NAME == "AOaSIS"
     assert oasis.AtherumPopulationStore is AtherumPopulationStore
     assert oasis.AOasisWorkerService is AOasisWorkerService
     assert callable(build_default_population)

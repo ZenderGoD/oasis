@@ -59,14 +59,14 @@
 
 <br>
 
-## A-Oasis for Atherum
+## AOaSIS for Atherum
 
-This fork includes `A-Oasis`, an Atherum-oriented adapter layer on top of
+This fork includes `AOaSIS`, an Atherum-oriented adapter layer on top of
 OASIS. It adds persistent Atherum society populations, normalized
 Twitter/Reddit/Instagram outputs, evidence briefs, cost estimates, and an
 Atherum-compatible local worker API.
 
-Run the local A-Oasis worker:
+Run the local AOaSIS worker:
 
 ```bash
 .venv/bin/python -m oasis.aoasis.worker_server --host 127.0.0.1 --port 4001
@@ -74,12 +74,25 @@ Run the local A-Oasis worker:
 
 The worker has three runtime modes:
 
-- `deterministic`: fast no-network contract testing with synthetic A-Oasis
+- `deterministic`: fast no-network contract testing with synthetic AOaSIS
   events.
 - `oasis-manual`: runs the real OASIS environment/database path with seeded
   Atherum society profiles and manual platform actions.
-- `oasis-llm`: uses OASIS `LLMAction`; embedding applications must inject a
-  real CAMEL model backend or model resolver.
+- `oasis-llm`: uses OASIS `LLMAction`; the worker CLI creates a default
+  OpenRouter/OpenAI-compatible CAMEL backend resolver.
+
+For `oasis-llm`, configure the default resolver with:
+
+```bash
+export OPENROUTER_API_KEY=...
+export AOASIS_DEFAULT_MODEL=openai/gpt-4o-mini
+# Optional:
+export OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+export OPENROUTER_APP_TITLE=AOaSIS
+export OPENROUTER_REFERRER=https://your-app.example
+```
+
+`OPENROUTER_MODEL` can be used instead of `AOASIS_DEFAULT_MODEL`.
 
 For local testing where `POST /api/v1/simulations` completes before returning
 and the worker uses the real OASIS environment path:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 
+from oasis.aoasis.model_resolver import default_openrouter_model_resolver
 from oasis.aoasis.worker import (AOASIS_WORKER_RUNTIME_MODES,
                                  AOasisWorkerService,
                                  make_aoasis_worker_server)
@@ -10,7 +11,7 @@ from oasis.aoasis.worker import (AOASIS_WORKER_RUNTIME_MODES,
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Run the Atherum-compatible A-Oasis worker service.")
+        description="Run the Atherum-compatible AOaSIS worker service.")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=4001)
     parser.add_argument("--data-dir", default=".aoasis-worker")
@@ -21,7 +22,7 @@ def main() -> None:
         help=(
             "Worker runtime: deterministic is fast/no-network; oasis-manual "
             "runs the real OASIS environment with manual actions; oasis-llm "
-            "requires an injected model backend in embedding applications."
+            "uses the default OpenRouter/OpenAI-compatible model resolver."
         ),
     )
     parser.add_argument(
@@ -35,10 +36,14 @@ def main() -> None:
         args.data_dir,
         run_in_background=not args.sync,
         runtime_mode=args.runtime,
+        model_resolver=(
+            default_openrouter_model_resolver()
+            if args.runtime == "oasis-llm" else None
+        ),
     )
     server = make_aoasis_worker_server((args.host, args.port), service)
     print(
-        f"A-Oasis worker listening on http://{args.host}:{args.port} "
+        f"AOaSIS worker listening on http://{args.host}:{args.port} "
         f"({args.runtime})",
         flush=True,
     )
