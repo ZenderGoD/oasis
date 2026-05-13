@@ -763,8 +763,9 @@ def _build_oasis_events(
             persona = personas[index % len(personas)]
             agent_id = _persona_id(persona, index % len(personas))
             sentiment = _sentiment_for_text(text)
+            normalized_action = _standard_native_action(action)
             events.append({
-                "action": action,
+                "action": normalized_action,
                 "rawAction": action,
                 "agentId": agent_id,
                 "userId": agent_id,
@@ -779,6 +780,18 @@ def _build_oasis_events(
                 },
             })
     return events
+
+
+def _standard_native_action(action: str) -> str:
+    if action == "like":
+        return "like_post"
+    if "comment" in action:
+        return "create_comment"
+    if action == "share":
+        return "repost"
+    if action == "story_mention":
+        return "quote_post"
+    return action
 
 
 def _native_action_engagement(action: str) -> int:
