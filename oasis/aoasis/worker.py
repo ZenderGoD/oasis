@@ -51,11 +51,25 @@ class AOasisWorkerService:
         self._lock = threading.Lock()
         self._runs: dict[str, dict[str, Any]] = {}
 
-    def health(self) -> dict[str, str]:
+    def health(self) -> dict[str, Any]:
         return {
             "status": "ok",
             "variant": AOASIS_VARIANT_NAME,
             "runtime": self.runtime_mode,
+            "engine": "oasis",
+            "runner": f"aoasis-{self.runtime_mode}",
+            "oasisAvailable": self.runtime_mode != "deterministic",
+            "realRunner": {
+                "enabled": self.runtime_mode != "deterministic",
+                "available": self.runtime_mode != "deterministic",
+                "modelType": "openrouter" if self.runtime_mode == "oasis-llm" else "manual",
+                "maxRealRounds": 3,
+            },
+            "stressLimits": {
+                "activeAgentsRecommendedMax": 80,
+                "backgroundAgentsRecommendedMax": 220,
+                "platforms": ["twitter", "reddit", "instagram"],
+            },
         }
 
     def start_simulation(self, request: dict[str, Any]) -> dict[str, str]:
@@ -555,14 +569,18 @@ def make_aoasis_worker_server(
             if urlparse(self.path).path != "/api/v1/simulations":
                 _send_json(self, 404, {"detail": "Not found"})
                 return
-            _handle(self, lambda: service.start_simulation(_read_json(self)))
+            _handle(self, lambda: service.start_simulation(_read_json(self)), 202)
 
     return ThreadingHTTPServer(address, Handler)
 
 
-def _handle(handler: BaseHTTPRequestHandler, fn: Any) -> None:
+def _handle(
+    handler: BaseHTTPRequestHandler,
+    fn: Any,
+    success_status: int = 200,
+) -> None:
     try:
-        _send_json(handler, 200, fn())
+        _send_json(handler, success_status, fn())
     except AOasisWorkerError as error:
         _send_json(handler, error.status_code, {"detail": error.detail})
     except json.JSONDecodeError:
@@ -732,7 +750,56 @@ def _build_oasis_events(
                     "persona": _agent_context(persona),
                 },
             })
+    if platform == "instagram":
+        native_actions = [
+            ("like", ""),
+            ("comment", "I would ask for one more proof point before trusting the product promise."),
+            ("save", ""),
+            ("share", ""),
+            ("story_mention", "This could work as a quick story mention if the product claim is clearer."),
+            ("reel_comment", "Strong visual hook, but the comments will ask what makes it different."),
+        ]
+        for index, (action, text) in enumerate(native_actions):
+            persona = personas[index % len(personas)]
+            agent_id = _persona_id(persona, index % len(personas))
+            sentiment = _sentiment_for_text(text)
+            normalized_action = _standard_native_action(action)
+            events.append({
+                "action": normalized_action,
+                "rawAction": action,
+                "agentId": agent_id,
+                "userId": agent_id,
+                "postId": seed_post_id,
+                "text": text,
+                "sentiment": sentiment,
+                "virtualHour": min(duration_hours - 1, index),
+                "engagementDelta": _native_action_engagement(action),
+                "metadata": {
+                    "platform": platform,
+                    "persona": _agent_context(persona),
+                },
+            })
     return events
+
+
+def _standard_native_action(action: str) -> str:
+    if action == "like":
+        return "like_post"
+    if "comment" in action:
+        return "create_comment"
+    if action == "share":
+        return "repost"
+    if action == "story_mention":
+        return "quote_post"
+    return action
+
+
+def _native_action_engagement(action: str) -> int:
+    if action in {"save", "share", "story_mention", "reel_comment"}:
+        return 3
+    if action == "comment":
+        return 2
+    return 1
 
 
 def _reaction_text(
